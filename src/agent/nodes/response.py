@@ -84,18 +84,19 @@ def generate_response(state: AgentState) -> dict:
         # Step 1: Match doctor name directly from current user message in cache
         matched_doc = _find_doctor_in_text(current_user_msg, search_results)
 
-        # Step 2: Pronoun resolution — "his", "her", "him", "she", "he", "their", "they"
-        # When no name found in current message but a pronoun is used, resolve to the
-        # last-mentioned doctor from recent conversation history (previous human messages).
-        _pronouns = {"his", "her", "him", "she", "he", "they", "their", "its"}
-        if not matched_doc and any(p in current_user_msg.split() for p in _pronouns):
-            # Scan previous human messages (most recent first) for a doctor name
+        # Step 2: Context resolution — if no doctor name found in the current message,
+        # try to resolve from recent conversation history.
+        # This handles both:
+        #   a) Pronouns: "what was his experience?" → find doctor in previous human message
+        #   b) Bare follow-ups: "what was the consultation fee?" → same resolution
+        if not matched_doc:
             previous_human_msgs = [m for m in reversed(state["messages"]) if isinstance(m, _HumanMsg)]
-            for prev_msg in previous_human_msgs[1:]:   # skip [0] which is the current message
+            for prev_msg in previous_human_msgs[1:]:   # skip [0] — that is the current message
                 matched_doc = _find_doctor_in_text(prev_msg.content, search_results)
                 if matched_doc:
-                    logger.info(f"  [NODE 9: PRONOUN RESOLVED] '{current_user_msg}' → matched '{matched_doc.get('doctor_name')}' from previous message")
+                    logger.info(f"  [NODE 9: CONTEXT RESOLVED] '{current_user_msg}' → matched '{matched_doc.get('doctor_name')}' from conversation history")
                     break
+
 
         if matched_doc:
             # Use only the matched doctor, not the full list
