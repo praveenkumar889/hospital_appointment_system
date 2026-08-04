@@ -70,11 +70,25 @@ def generate_response(state: AgentState) -> dict:
     reply_raw = llm.invoke([HumanMessage(content=prompt)])
     reply_text = reply_raw.content if hasattr(reply_raw, "content") else str(reply_raw)
     
-    # Clean extra empty spaces: collapse 3+ newlines to max 2 newlines
+    # Deterministic Spacing Normalizer: Enforce exact 1-space / 1-newline layout rules
     import re
-    cleaned_reply = re.sub(r'\n{3,}', '\n\n', reply_text).strip()
+    cleaned_reply = reply_text.replace("\r\n", "\n")
+    cleaned_reply = re.sub(r'\n{3,}', '\n\n', cleaned_reply)
+    
+    # 1. Single line break inside info block: Header -> Department -> Branch
+    cleaned_reply = re.sub(r'(\*\*[^\n]+\*\*)\n\n+(Department:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Department:.*?)\n\n+(Branch:)', r'\1\n\2', cleaned_reply)
+    
+    # 2. Exactly ONE empty line (\n\n) between Branch line and 📅 Available Time Slots
+    cleaned_reply = re.sub(r'(Branch:.*?)\n+(📅 Available Time Slots)', r'\1\n\n\2', cleaned_reply)
+    
+    # 3. Single line break inside slots block: 📅 -> Morning -> Afternoon -> Evening
+    cleaned_reply = re.sub(r'(📅 Available Time Slots[^\n]*)\n\n+(Morning:|Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Morning:[^\n]*)\n\n+(Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Afternoon:[^\n]*)\n\n+(Evening:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = cleaned_reply.strip()
 
-    logger.info(f"  [NODE 9: GENERATE_RESPONSE] Generated LLM Reply: '{cleaned_reply[:100]}...'")
+    logger.info(f"  [NODE 9: GENERATE_RESPONSE] Generated Cleaned Reply: '{cleaned_reply[:100]}...'")
     return {
         "messages":     [AIMessage(content=cleaned_reply)],
         "conversation": {**state["conversation"], "last_response": cleaned_reply},
