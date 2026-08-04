@@ -150,8 +150,31 @@ def execute_tool(state: AgentState) -> dict:
         
         known_doc_name = data.get("doctor_name")
         known_doc_id   = data.get("doctor_id")
+        search_cache   = state["runtime"].get("search_results", [])
+        
+        # ── SMART SHORTCUT: Check search_results cache first ──────────────────
+        # If the user is asking about a specific doctor already known from a previous
+        # turn (in search_results), skip GraphRAG entirely and only fetch availability
+        # for that one doctor.
+        cached_doc = None
+        if (known_doc_name or known_doc_id) and search_cache:
+            from src.agent.constants import normalize_text
+            target_norm = normalize_text(known_doc_name or known_doc_id)
+            for cached in search_cache:
+                cand_norm = normalize_text(cached.get("doctor_name", ""))
+                if target_norm in cand_norm or cand_norm in target_norm or any(
+                    t in cand_norm for t in target_norm.split() if len(t) >= 4
+                ):
+                    cached_doc = cached
+                    break
 
-        if known_doc_id or known_doc_name:
+        if cached_doc:
+            # Doctor found in cache — skip GraphRAG, use cached data directly
+            logger.info(f"  [NODE 6: EXECUTE_TOOL] Doctor '{cached_doc.get('doctor_name')}' found in cache — skipping GraphRAG, fetching slots only.")
+            doctors = [cached_doc]
+            search_msg = f"Fetched slots for {cached_doc.get('doctor_name')}"
+
+        elif known_doc_id or known_doc_name:
             doc_info = resolve_doctor(data, [], client_id)
             if doc_info.get("multiple_doctors"):
                 doctors = doc_info["multiple_doctors"]
