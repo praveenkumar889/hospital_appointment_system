@@ -67,9 +67,15 @@ def generate_response(state: AgentState) -> dict:
         messages=recent,
     )
 
-    reply = llm.invoke([HumanMessage(content=prompt)])
-    logger.info(f"  [NODE 9: GENERATE_RESPONSE] Generated LLM Reply: '{reply[:100]}...'")
+    reply_raw = llm.invoke([HumanMessage(content=prompt)])
+    reply_text = reply_raw.content if hasattr(reply_raw, "content") else str(reply_raw)
+    
+    # Clean extra empty spaces: collapse 3+ newlines to max 2 newlines
+    import re
+    cleaned_reply = re.sub(r'\n{3,}', '\n\n', reply_text).strip()
+
+    logger.info(f"  [NODE 9: GENERATE_RESPONSE] Generated LLM Reply: '{cleaned_reply[:100]}...'")
     return {
-        "messages":     [AIMessage(content=reply)],
-        "conversation": {**state["conversation"], "last_response": reply},
+        "messages":     [AIMessage(content=cleaned_reply)],
+        "conversation": {**state["conversation"], "last_response": cleaned_reply},
     }
