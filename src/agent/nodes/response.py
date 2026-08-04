@@ -70,23 +70,20 @@ def generate_response(state: AgentState) -> dict:
     reply_raw = llm.invoke([HumanMessage(content=prompt)])
     reply_text = reply_raw.content if hasattr(reply_raw, "content") else str(reply_raw)
     
-    # Deterministic Spacing Normalizer: Enforce exact 1-space / 1-newline layout rules
+    # Deterministic Spacing Normalizer: Enforce exact single-line breaks inside cards & 1 blank line between cards
     import re
     cleaned_reply = reply_text.replace("\r\n", "\n")
-    cleaned_reply = re.sub(r'\n{3,}', '\n\n', cleaned_reply)
     
-    # 1. Single line break inside info block: Header -> Department -> Branch
-    cleaned_reply = re.sub(r'(\*\*[^\n]+\*\*)\n\n+(Department:)', r'\1\n\2', cleaned_reply)
-    cleaned_reply = re.sub(r'(Department:.*?)\n\n+(Branch:)', r'\1\n\2', cleaned_reply)
-    
-    # 2. Exactly ONE empty line (\n\n) between Branch line and 📅 Available Time Slots
-    cleaned_reply = re.sub(r'(Branch:.*?)\n+(📅 Available Time Slots)', r'\1\n\n\2', cleaned_reply)
-    
-    # 3. Single line break inside slots block: 📅 -> Morning -> Afternoon -> Evening
-    cleaned_reply = re.sub(r'(📅 Available Time Slots[^\n]*)\n\n+(Morning:|Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
-    cleaned_reply = re.sub(r'(Morning:[^\n]*)\n\n+(Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
-    cleaned_reply = re.sub(r'(Afternoon:[^\n]*)\n\n+(Evening:)', r'\1\n\2', cleaned_reply)
-    cleaned_reply = cleaned_reply.strip()
+    # 1. Ensure SINGLE line break (\n) inside entire doctor block (Name -> Department -> Branch -> Slots -> Morning -> Afternoon)
+    cleaned_reply = re.sub(r'(\*\*[^\n]+\*\*)\n\s*\n+(Department:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Department:[^\n]*)\n\s*\n+(Branch:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Branch:[^\n]*)\n\s*\n+(📅 Available Time Slots)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(📅 Available Time Slots[^\n]*)\n\s*\n+(Morning:|Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Morning:[^\n]*)\n\s*\n+(Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Afternoon:[^\n]*)\n\s*\n+(Evening:)', r'\1\n\2', cleaned_reply)
+
+    # 2. Collapse any 3+ newlines to max 2 newlines (\n\n) for card separation
+    cleaned_reply = re.sub(r'\n{3,}', '\n\n', cleaned_reply).strip()
 
     logger.info(f"  [NODE 9: GENERATE_RESPONSE] Generated Cleaned Reply: '{cleaned_reply[:100]}...'")
     return {

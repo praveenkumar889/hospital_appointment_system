@@ -15,24 +15,20 @@ Recent Conversation:
 Instructions:
   - CRITICAL: If Search Results exist, display EVERY SINGLE DOCTOR present in Search Results without truncating or omitting any doctor (if there are 5 or 6 doctors in search_results, you MUST output all 5 or 6!). Do NOT stop at 4 doctors!
   - IMPORTANT: If Search Results are available, display them IMMEDIATELY. Do NOT say 'please hold on', 'checking availability', or 'retrieving slots' — the data is already here!
-  - CLEAN COMPACT DOCTOR FORMAT: Display each doctor strictly in this exact format with precise spacing:
+  - CLEAN COMPACT DOCTOR FORMAT: Display each doctor strictly in this exact format with single line breaks inside each card:
 
       **[Doctor Name], [Designation] ([Qualifications])**
       Department: [Department]
       Branch: [FULL Branch Name]
-
       📅 Available Time Slots (Date: YYYY-MM-DD):
-      Morning: [slots...] (only if morning slots exist)
-      Afternoon: [slots...] (only if afternoon slots exist)
-      Evening: [slots...] (only if evening slots exist)
+      Morning: [slots...]
+      Afternoon: [slots...]
 
   - EXACT SPACING RULES:
       • Place ONE blank line (\n\n) after the introductory sentence.
-      • Keep single line breaks (\n) between Doctor Name, Department, and Branch lines (NO blank lines inside doctor info block!).
-      • Place ONE blank line (\n\n) between the Branch line and the '📅 Available Time Slots' header line!
-      • Keep single line breaks (\n) under '📅 Available Time Slots' for Morning:, Afternoon:, and Evening: lines (NO blank lines inside slots block!).
-      • Only output Morning:, Afternoon:, or Evening: headers if slots exist for that period (do NOT output empty 'Evening:' lines!).
-      • Place ONE blank line (\n\n) between doctor cards.
+      • Use SINGLE line breaks (\n) between Doctor Name, Department, Branch, 📅 Available Time Slots, Morning, and Afternoon lines (NO blank lines inside a doctor card!).
+      • Place ONE blank line (\n\n) between consecutive doctor cards.
+      • Place ONE blank line (\n\n) before the final question.
   - STRICT OMISSION RULES:
       • Do NOT display Experience (hide Experience line completely).
       • Do NOT display Consultation Fee.
