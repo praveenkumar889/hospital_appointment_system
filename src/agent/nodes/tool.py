@@ -13,9 +13,31 @@ from src.tools.models import ToolRequest
 logger = logging.getLogger("agent_nodes")
 
 
-# ── Modular Helpers ─────────────────────────────────────────────────────────
+def filter_doctors_by_department(doctors: list, target_dept: str) -> list:
+    """Dynamically filter candidate doctors by department using dynamic prefix/token matching. Zero hardcoded dictionaries."""
+    if not target_dept or not doctors:
+        return doctors
+
+    dept_norm = normalize_text(target_dept)
+    tokens = [t for t in dept_norm.replace("&", " ").replace("-", " ").split() if len(t) >= 3]
+    prefixes = [t[:5] for t in tokens if len(t) >= 5]
+    search_terms = set(tokens + prefixes)
+
+    filtered = []
+    for d in doctors:
+        doc_dept = normalize_text(d.get("department") or d.get("specialization") or "")
+        doc_spec = normalize_text(d.get("specialization") or "")
+        combined = f"{doc_dept} {doc_spec}"
+
+        if any(term in combined for term in search_terms):
+            filtered.append(d)
+
+    return filtered if filtered else doctors
+
+
 
 def resolve_doctor(data: dict, search_cache: list, default_client_id: str) -> dict:
+
     """
     Resolve doctor_id and client_id dynamically from workflow data, search cache, or GraphRAG search.
     """
@@ -255,6 +277,12 @@ def execute_tool(state: AgentState) -> dict:
             search_resp = registry.route(search_req)
             doctors = search_resp.data if (search_resp and search_resp.success and isinstance(search_resp.data, list)) else []
             search_msg = search_resp.message if search_resp else "Search completed"
+
+            # Filter doctors by department if department was specified in workflow data
+            if dept and doctors:
+                doctors = filter_doctors_by_department(doctors, dept)
+                logger.info(f"  [NODE 6: EXECUTE_TOOL] Department filter '{dept}' -> Kept {len(doctors)} matching doctor(s).")
+
 
         # Step B: Batch availability — tool handles parallelism, retry, and fault isolation internally
         bulk_req   = ToolRequest(operation="availability_batch", payload={"doctors": doctors, "date": date_val})
