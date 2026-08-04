@@ -162,11 +162,34 @@ def execute_tool(state: AgentState) -> dict:
                 c_id     = doc_info.get("client_id") or client_id
                 
                 logger.info(f"  [NODE 6: EXECUTE_TOOL] Targeted single doctor search for '{known_doc_name or doc_id}' (Bypassing GraphRAG broad search)")
+                import sqlite3
+                full_branch = data.get("hospital_name")
+                if not full_branch:
+                    try:
+                        conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT name, branch, city FROM hospitals WHERE id = ? OR tenant_id = ?", (c_id, c_id))
+                        hrow = cursor.fetchone()
+                        if not hrow and doc_id:
+                            suffix = doc_id.split("--")[-1] if "--" in doc_id else doc_id.split("-")[-1]
+                            cursor.execute("SELECT name, branch, city FROM hospitals WHERE loc_short = ? OR id LIKE ?", (suffix, f"%{suffix}%"))
+                            hrow = cursor.fetchone()
+                        if hrow:
+                            h_name, h_branch, h_city = hrow
+                            full_branch = h_branch if (h_branch and len(h_branch) > len(h_name)) else f"{h_name}, {h_city}" if h_city else h_name
+                        conn.close()
+                    except Exception as e:
+                        logger.warning(f"  [NODE 6: DYNAMIC BRANCH LOOKUP FAILED] {e}")
+                if not full_branch:
+                    full_branch = "Gleneagles Hospitals"
+                
                 doctors = [{
                     "doctor_id":      doc_id,
                     "doctor_name":    known_doc_name or f"Dr. {doc_id}",
                     "department":     data.get("department") or "General Medicine",
-                    "branch_name":    data.get("hospital_name") or "Gleneagles Hospitals",
+                    "branch_name":    full_branch,
+                    "hospital_name":  full_branch,
+                    "branch":         full_branch,
                     "client_id":      c_id,
                 }]
                 search_msg = f"Targeted slots for {known_doc_name or doc_id}"

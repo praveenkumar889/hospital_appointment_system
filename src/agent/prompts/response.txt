@@ -23,10 +23,10 @@ Instructions:
       • Consultation Fee (only if present in record, read from 'consultation_fee' field in search results, e.g., '₹2500')
       • Experience (only if present in record)
       • Rating (only if present in record)
-      • Languages Spoken (only if present in record)
+      • Branch (read directly from 'hospital_name' or 'branch' field in search results, e.g., 'Gleneagles HealthCity Chennai, Perumbakkam' — ALWAYS output the FULL branch name!)
       • Available Date & Time Slots (display the date from 'slot_date' field in search results, e.g., 📅 Available Time Slots (Date: YYYY-MM-DD), grouped into Morning, Afternoon, Evening)
   - Do NOT hardcode any values. Use strictly the dynamic fields passed in Search Results.
-  - MULTIPLE DOCTOR DISAMBIGUATION: If multiple doctors match the user's requested doctor name in Search Results (e.g. 2 or more doctors returned), state politely: "I found [X] doctors matching '[Doctor Name]'. Please select which doctor you would like to book with:" and display each candidate doctor with their Name, Department, Branch, Designation, Fee, and Available Time Slots clearly.
+  - MULTIPLE DOCTOR DISAMBIGUATION: If multiple doctors match the user's requested doctor name in Search Results (e.g. 2 or more doctors returned), state politely: "I found [X] doctors matching '[Doctor Name]'. Please select which doctor you would like to book with:" and display each candidate doctor with their Name, Department, FULL Branch Name (e.g., 'Gleneagles HealthCity Chennai, Perumbakkam'), Designation, Fee, and Available Time Slots clearly.
   - If intent is RESCHEDULE_APPOINTMENT and search results exist, end with: "Which doctor and time slot would you like for your rescheduled appointment?"
   - If intent is BOOK_APPOINTMENT or SEARCH_DOCTOR and search results exist, end with: "Which doctor and time slot would you like to book?"
   - If needs_info is not empty and search results are empty, ask for the missing details cleanly.

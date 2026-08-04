@@ -273,7 +273,7 @@ class GraphRAGEngine:
         return final_fused
 
     def _enrich_from_sqlite(self, docs: list[dict]) -> list[dict]:
-        """Enrich fused doctor records with qualifications and consultation_fee from SQLite."""
+        """Enrich fused doctor records with qualifications, consultation_fee, full hospital name & branch from SQLite."""
         if not docs:
             return docs
         import sqlite3
@@ -285,16 +285,32 @@ class GraphRAGEngine:
                 name = doc.get("name") or doc.get("doctor_name") or ""
                 row = None
                 if did:
-                    cursor.execute("SELECT qualifications, consultation_fee FROM doctors WHERE id = ?", (did,))
+                    cursor.execute("""
+                        SELECT d.qualifications, d.consultation_fee, h.name, h.branch, h.city 
+                        FROM doctors d 
+                        LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
+                        WHERE d.id = ?
+                    """, (did,))
                     row = cursor.fetchone()
                 if not row and name:
-                    cursor.execute("SELECT qualifications, consultation_fee FROM doctors WHERE name LIKE ?", (f"%{name}%",))
+                    cursor.execute("""
+                        SELECT d.qualifications, d.consultation_fee, h.name, h.branch, h.city 
+                        FROM doctors d 
+                        LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
+                        WHERE d.name LIKE ?
+                    """, (f"%{name}%",))
                     row = cursor.fetchone()
                 if row:
                     if row[0]:
                         doc["qualifications"] = row[0]
                     if row[1]:
                         doc["consultation_fee"] = row[1]
+                    h_name, h_branch, h_city = row[2], row[3], row[4]
+                    if h_name or h_branch:
+                        full_branch = h_branch if (h_branch and len(h_branch) > len(str(h_name))) else f"{h_name}, {h_city}" if (h_name and h_city) else (h_name or h_branch)
+                        doc["hospital_name"] = full_branch
+                        doc["branch_name"]   = full_branch
+                        doc["branch"]        = full_branch
             conn.close()
         except Exception as e:
             logger.warning(f"Failed to enrich doctor details from SQLite: {e}")
