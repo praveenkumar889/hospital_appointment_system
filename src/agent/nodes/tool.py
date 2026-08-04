@@ -183,14 +183,35 @@ def execute_tool(state: AgentState) -> dict:
                 if not full_branch:
                     full_branch = "Gleneagles Hospitals"
                 
+                desig, qual, exp, fee, langs, spec = None, None, None, None, None, None
+                try:
+                    conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT designation, qualifications, experience_years, consultation_fee, languages_spoken, speciality 
+                        FROM doctors 
+                        WHERE id = ? OR name LIKE ?
+                    """, (doc_id, f"%{known_doc_name}%"))
+                    drow = cursor.fetchone()
+                    if drow:
+                        desig, qual, exp, fee, langs, spec = drow
+                    conn.close()
+                except Exception as e:
+                    logger.warning(f"  [NODE 6: DOCTOR METADATA LOOKUP FAILED] {e}")
+
                 doctors = [{
-                    "doctor_id":      doc_id,
-                    "doctor_name":    known_doc_name or f"Dr. {doc_id}",
-                    "department":     data.get("department") or "General Medicine",
-                    "branch_name":    full_branch,
-                    "hospital_name":  full_branch,
-                    "branch":         full_branch,
-                    "client_id":      c_id,
+                    "doctor_id":        doc_id,
+                    "doctor_name":      known_doc_name or f"Dr. {doc_id}",
+                    "department":       spec or data.get("department") or "General Medicine",
+                    "designation":      desig or "",
+                    "qualifications":   qual or "",
+                    "experience_years": exp,
+                    "consultation_fee": fee,
+                    "languages":        langs or "",
+                    "branch_name":      full_branch,
+                    "hospital_name":    full_branch,
+                    "branch":           full_branch,
+                    "client_id":        c_id,
                 }]
                 search_msg = f"Targeted slots for {known_doc_name or doc_id}"
         else:

@@ -304,7 +304,7 @@ class GraphRAGEngine:
                 row = None
                 if did:
                     cursor.execute("""
-                        SELECT d.qualifications, d.consultation_fee, h.name, h.branch, h.city 
+                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages_spoken, h.name, h.branch, h.city 
                         FROM doctors d 
                         LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
                         WHERE d.id = ?
@@ -312,18 +312,19 @@ class GraphRAGEngine:
                     row = cursor.fetchone()
                 if not row and name:
                     cursor.execute("""
-                        SELECT d.qualifications, d.consultation_fee, h.name, h.branch, h.city 
+                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages_spoken, h.name, h.branch, h.city 
                         FROM doctors d 
                         LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
                         WHERE d.name LIKE ?
                     """, (f"%{name}%",))
                     row = cursor.fetchone()
                 if row:
-                    if row[0]:
-                        doc["qualifications"] = row[0]
-                    if row[1]:
-                        doc["consultation_fee"] = row[1]
-                    h_name, h_branch, h_city = row[2], row[3], row[4]
+                    if row[0]: doc["qualifications"] = row[0]
+                    if row[1]: doc["consultation_fee"] = row[1]
+                    if row[2]: doc["designation"] = row[2]
+                    if row[3]: doc["experience_years"] = row[3]
+                    if row[4]: doc["languages"] = row[4]
+                    h_name, h_branch, h_city = row[5], row[6], row[7]
                     if h_name or h_branch:
                         full_branch = h_branch if (h_branch and len(h_branch) > len(str(h_name))) else f"{h_name}, {h_city}" if (h_name and h_city) else (h_name or h_branch)
                         doc["hospital_name"] = full_branch
