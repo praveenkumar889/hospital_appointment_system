@@ -57,37 +57,53 @@ def generate_response(state: AgentState) -> dict:
 
     # GENERAL_QUERY Doctor Lookup: Find the specific doctor the user is asking about.
     # Priority order:
-    #   1. Search existing search_results cache using CURRENT user message only
-    #   2. SQLite direct lookup using CURRENT user message only (fallback when cache empty)
-    # We MUST use only the current user message to find the doctor — not all history —
-    # to avoid matching doctors from previous AI responses.
+    #   1. Current message contains a doctor name → match from search_results cache
+    #   2. Current message contains a pronoun (his/her/him/she/he) → resolve from recent history
+    #   3. SQLite direct lookup using current message (fallback when cache is empty)
     search_results = list(state["runtime"].get("search_results", []))
     if intent == "GENERAL_QUERY":
-        # Extract only the current user's message (last human message)
-        from langchain_core.messages import HumanMessage as _HumanMsg
+        from langchain_core.messages import HumanMessage as _HumanMsg, AIMessage as _AIMsg
+
+        # Extract the current user message (last human message only)
         current_user_msg = ""
         for m in reversed(state["messages"]):
             if isinstance(m, _HumanMsg):
                 current_user_msg = m.content.lower()
                 break
 
-        # Step 1: Look up the doctor in existing search_results cache
-        matched_from_cache = None
-        if search_results and current_user_msg:
-            for cached_doc in search_results:
-                doc_name = str(cached_doc.get("doctor_name") or "")
-                name_tokens = [t for t in doc_name.replace(".", "").split() if len(t) >= 4]
-                if name_tokens and any(t.lower() in current_user_msg for t in name_tokens):
-                    matched_from_cache = cached_doc
+        # Helper: find a doctor in search_results whose name tokens appear in a text string
+        def _find_doctor_in_text(text: str, candidates: list) -> dict | None:
+            text_lower = text.lower()
+            for doc in candidates:
+                doc_name = str(doc.get("doctor_name") or "")
+                tokens = [t for t in doc_name.replace(".", "").split() if len(t) >= 4]
+                if tokens and any(t.lower() in text_lower for t in tokens):
+                    return doc
+            return None
+
+        # Step 1: Match doctor name directly from current user message in cache
+        matched_doc = _find_doctor_in_text(current_user_msg, search_results)
+
+        # Step 2: Pronoun resolution — "his", "her", "him", "she", "he", "their", "they"
+        # When no name found in current message but a pronoun is used, resolve to the
+        # last-mentioned doctor from recent conversation history (previous human messages).
+        _pronouns = {"his", "her", "him", "she", "he", "they", "their", "its"}
+        if not matched_doc and any(p in current_user_msg.split() for p in _pronouns):
+            # Scan previous human messages (most recent first) for a doctor name
+            previous_human_msgs = [m for m in reversed(state["messages"]) if isinstance(m, _HumanMsg)]
+            for prev_msg in previous_human_msgs[1:]:   # skip [0] which is the current message
+                matched_doc = _find_doctor_in_text(prev_msg.content, search_results)
+                if matched_doc:
+                    logger.info(f"  [NODE 9: PRONOUN RESOLVED] '{current_user_msg}' → matched '{matched_doc.get('doctor_name')}' from previous message")
                     break
 
-        if matched_from_cache:
-            # Doctor found in cache — use it directly, keep only the matched doctor in search_results
-            search_results = [matched_from_cache]
-            logger.info(f"  [NODE 9: CACHE HIT] GENERAL_QUERY matched doctor from cache: {matched_from_cache.get('doctor_name')}")
+        if matched_doc:
+            # Use only the matched doctor, not the full list
+            search_results = [matched_doc]
+            logger.info(f"  [NODE 9: DOCTOR RESOLVED] GENERAL_QUERY → '{matched_doc.get('doctor_name')}'")
 
         elif not search_results and current_user_msg:
-            # Step 2: SQLite fallback — only when cache is empty, search current message only
+            # Step 3: SQLite fallback — only when cache is empty, search current message only
             try:
                 import sqlite3
                 conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
@@ -125,6 +141,7 @@ def generate_response(state: AgentState) -> dict:
                         break
             except Exception as _sql_e:
                 logger.warning(f"  [NODE 9: SQLITE FALLBACK FAILED] {_sql_e}")
+
 
     prompt = prompts.get(
         "response",
