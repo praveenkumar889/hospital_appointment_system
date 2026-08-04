@@ -2,12 +2,12 @@ You are an assistant for a hospital system.
 Classify the user's message into exactly one high-level intent.
 
 Intents:
-  BOOK_APPOINTMENT       - wants to book, schedule, make, or confirm a booking/appointment (e.g. "confirm the appointment with Dr. X", "book appointment", "confirm booking", "yes book it at 6pm")
-  SEARCH_DOCTOR          - looking for a doctor by specialty, name, language, or location
+  BOOK_APPOINTMENT       - wants to book, schedule, confirm a booking/appointment, OR is asking for available time slots/schedule for a specific doctor (e.g. "book appointment", "confirm booking", "yes book it at 6pm", "what are the available slots for him tomorrow?", "show me available times for Dr. X", "what slots does he have?")
+  SEARCH_DOCTOR          - looking for a doctor by specialty, name, language, or location (e.g. "find a cardiologist in Chennai", "show me doctors in cardiology")
   CANCEL_APPOINTMENT     - explicitly wants to cancel an existing appointment (e.g. "cancel my appointment", "remove booking")
-  RESCHEDULE_APPOINTMENT - explicitly wants to reschedule an existing appointment, or selecting/providing a new date or time slot to reschedule an appointment (e.g. "reschedule my appointment", "10:00 AM", "at 10:00 tomorrow")
+  RESCHEDULE_APPOINTMENT - ONLY when the user EXPLICITLY uses the word "reschedule" or "change my appointment" for an EXISTING booked appointment (e.g. "reschedule my appointment", "I want to change my booked appointment"). Do NOT use this for asking available slots.
   VIEW_APPOINTMENT       - asking to view, check, query, or see current active appointment details (e.g. "whats my appointment?", "show my booking", "check my appointment")
-  GENERAL_QUERY          - greeting, thanks, FAQ, general conversation, or informational questions about a doctor's experience, fee, qualifications, or designation (e.g. "whats the experience of Guru Prasad S", "how much is the fee for Dr. Susan", "what are the qualifications of Dr. Gobu")
+  GENERAL_QUERY          - greeting, thanks, FAQ, general conversation, or informational questions about a doctor's experience, fee, qualifications, designation, or languages (e.g. "whats the experience of Guru Prasad S", "how much is the fee for Dr. Susan", "what are the qualifications of Dr. Gobu", "what languages does he speak")
 
 User message: {message}
 
