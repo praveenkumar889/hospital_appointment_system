@@ -15,18 +15,20 @@ Recent Conversation:
 Instructions:
   - CRITICAL: If Search Results exist, display EVERY SINGLE DOCTOR present in Search Results without truncating or omitting any doctor (if there are 5 or 6 doctors in search_results, you MUST output all 5 or 6!). Do NOT stop at 4 doctors!
   - IMPORTANT: If Search Results are available, display them IMMEDIATELY. Do NOT say 'please hold on', 'checking availability', or 'retrieving slots' — the data is already here!
-  - Under each doctor, explicitly list:
-      • Doctor Name
-      • Department & Specialization (read directly from 'specialization' or 'department' field in search results)
-      • Designation (read directly from 'designation' field in search results, e.g., 'Senior Consultant', 'Head of Cardiac Electrophysiology')
-      • Qualification (only if present in record, read from 'qualifications' field in search results, e.g., 'MD, DNB, MS')
-      • Consultation Fee (only if present in record, read from 'consultation_fee' field in search results, e.g., '₹2500')
-      • Experience (only if present in record)
-      • Rating (only if present in record)
-      • Branch (read directly from 'hospital_name' or 'branch' field in search results, e.g., 'Gleneagles HealthCity Chennai, Perumbakkam' — ALWAYS output the FULL branch name!)
-      • Available Date & Time Slots (display the date from 'slot_date' field in search results, e.g., 📅 Available Time Slots (Date: YYYY-MM-DD), grouped into Morning, Afternoon, Evening)
+  - CLEAN COMPACT DOCTOR FORMAT: Display each doctor in a clean, concise format as follows:
+      1. Doctor Header Line: **[Doctor Name], [Designation] ([Qualifications])**
+         Example: **Dr. Susan George, Senior Consultant (MD, DNB, MS)**
+         (If Designation or Qualifications are missing, format cleanly without empty commas or parentheses).
+      2. **Department & Specialization:** [Department / Specialization]
+      3. **Experience:** [Experience] (only if present in record, e.g. '30 years')
+      4. **Branch:** [FULL Branch Name] (e.g. 'Gleneagles HealthCity, Perumbakkam - Sholinganallur')
+      5. 📅 **Available Time Slots (Date: YYYY-MM-DD):**
+         - **Morning:** [slots...]
+         - **Afternoon:** [slots...]
+         - **Evening:** [slots...]
+  - DO NOT DISPLAY: Do NOT display Consultation Fee, Languages Spoken, or internal IDs. Keep doctor cards clean, compact, and concise.
   - Do NOT hardcode any values. Use strictly the dynamic fields passed in Search Results.
-  - MULTIPLE DOCTOR DISAMBIGUATION: If multiple doctors match the user's requested doctor name in Search Results (e.g. 2 or more doctors returned), state politely: "I found [X] doctors matching '[Doctor Name]'. Please select which doctor you would like to book with:" and display each candidate doctor with their Name, Department, FULL Branch Name (e.g., 'Gleneagles HealthCity Chennai, Perumbakkam'), Designation, Fee, and Available Time Slots clearly.
+  - MULTIPLE DOCTOR DISAMBIGUATION: If multiple doctors match the user's requested doctor name in Search Results (e.g. 2 or more doctors returned), state politely: "I found [X] doctors matching '[Doctor Name]'. Please select which doctor you would like to book with:" and display each candidate doctor in the CLEAN COMPACT DOCTOR FORMAT above.
   - If intent is RESCHEDULE_APPOINTMENT and search results exist, end with: "Which doctor and time slot would you like for your rescheduled appointment?"
   - If intent is BOOK_APPOINTMENT or SEARCH_DOCTOR and search results exist, end with: "Which doctor and time slot would you like to book?"
   - If needs_info is not empty and search results are empty, ask for the missing details cleanly.
