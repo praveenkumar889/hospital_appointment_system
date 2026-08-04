@@ -87,21 +87,26 @@ class DoctorSearchTool(BaseTool):
                 doc_id_str = str(d.get("doctor_id") or d.get("sql_id") or d.get("id") or "")
                 doc_name_str = str(d.get("doctor_name") or d.get("name") or "")
 
-                # Dynamically enrich full branch name from hospitals SQLite table
+                # Dynamically enrich full branch name and metadata from doctors & hospitals SQLite tables
                 import sqlite3
                 try:
                     conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT h.name, h.branch, h.city 
+                        SELECT h.name, h.branch, h.city, doc.designation, doc.qualifications, doc.consultation_fee, doc.experience_years, doc.languages_spoken
                         FROM doctors doc
                         JOIN hospitals h ON h.id = doc.tenant_id OR h.tenant_id = doc.tenant_id OR (doc.id LIKE '%chn' AND h.id = 'glh-chn')
                         WHERE doc.id = ? OR doc.name LIKE ?
                     """, (doc_id_str, f"%{doc_name_str}%"))
                     hrow = cursor.fetchone()
                     if hrow:
-                        h_name, h_branch, h_city = hrow
+                        h_name, h_branch, h_city, desig, qual, fee, exp, langs = hrow
                         hosp_val = h_branch if (h_branch and len(h_branch) > len(str(h_name))) else f"{h_name}, {h_city}" if (h_name and h_city) else h_name
+                        if desig: d["designation"] = desig
+                        if qual: d["qualifications"] = qual
+                        if fee: d["consultation_fee"] = f"₹{fee}" if not str(fee).startswith("₹") else str(fee)
+                        if exp: d["experience_years"] = exp
+                        if langs: d["languages"] = langs
                     conn.close()
                 except Exception:
                     pass
@@ -117,8 +122,9 @@ class DoctorSearchTool(BaseTool):
                     "designation":      str(d.get("designation") or ""),
                     "qualifications":   str(d.get("qualifications") or ""),
                     "consultation_fee": str(d.get("consultation_fee") or ""),
-                    "languages":        d.get("languages") if isinstance(d.get("languages"), list) else [],
-                    "experience":       d.get("experience") or d.get("experience_years"),
+                    "languages":        d.get("languages") if isinstance(d.get("languages"), list) else str(d.get("languages") or ""),
+                    "experience":       d.get("experience_years") or d.get("experience"),
+                    "experience_years": d.get("experience_years") or d.get("experience"),
                     "rating":           d.get("rating") or d.get("rating_score"),
                     "branch_name":      str(hosp_val),
                     "hospital_name":    str(hosp_val),
