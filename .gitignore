@@ -1,0 +1,53 @@
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# SQLite Temporary Files & Journals
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & Debug Output
+*.log
+logs/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Build & Distribution
+build/
+dist/
+*.egg-info/
+.eggs/

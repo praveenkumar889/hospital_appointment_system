@@ -1,0 +1,7 @@
+Summarize this patient's hospital interaction history in 2-3 sentences.
+Focus on preferences, frequently visited departments, and any patterns.
+
+Booking history: {booking_history}
+Preferences: {preferences}
+
+Write a concise summary only.

@@ -1,0 +1,24 @@
+Current Date context: {current_date}
+
+Extract all entities and perform clinical department reasoning from the conversation below.
+
+Return a JSON object with:
+  - symptoms: list of symptoms mentioned (e.g. ["knee pain", "chest pain"])
+  - city: location or city mentioned (e.g. "Chennai", "Hyderabad")
+  - department: medical specialty inferred from EITHER:
+      a) Symptoms (e.g. "knee pain" -> "Orthopedics", "chest pain" -> "Cardiology", "eye pain" -> "Ophthalmology", "fever" -> "General Medicine")
+      b) Explicit specialty or doctor terms (e.g. "heart doctor" / "cardiologist" -> "Cardiology", "eye doctor" -> "Ophthalmology", "skin doctor" -> "Dermatology", "bone doctor" -> "Orthopedics", "brain doctor" / "neurologist" -> "Neurology")
+  - doctor_name: doctor name if mentioned
+  - date: YYYY-MM-DD format if mentioned or implied. Dynamically calculate relative day references (e.g. "today", "tomorrow", "Wednesday", "Friday", "this Thursday", "next Monday") into YYYY-MM-DD format using current date {current_date}.
+  - time: HH:MM AM/PM format if mentioned
+  - appointment_id: appointment reference ID if mentioned (e.g. "APT-XXXXXXXX")
+  - priority: "Normal" or "Urgent" (optional)
+
+Rules:
+  - Return ONLY valid JSON object
+  - Use null if not mentioned or unclear
+  - Dynamically calculate YYYY-MM-DD for any relative day references using current date {current_date}
+  - Never hallucinate non-existent details
+
+Conversation:
+{messages}
