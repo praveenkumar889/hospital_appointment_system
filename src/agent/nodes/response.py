@@ -72,7 +72,7 @@ def generate_response(state: AgentState) -> dict:
                 break
 
         # Helper: find a doctor in search_results whose name tokens appear in a text string
-        def _find_doctor_in_text(text: str, candidates: list) -> dict | None:
+        def _find_doctor_in_text(text: str, candidates: list):
             text_lower = text.lower()
             for doc in candidates:
                 doc_name = str(doc.get("doctor_name") or "")
