@@ -82,12 +82,36 @@ class DoctorSearchTool(BaseTool):
 
                 dept_val = cleaned_specs[0] if cleaned_specs else str(d.get("department") or d.get("specialty") or d.get("specialization") or "")
                 specs_val = ", ".join(cleaned_specs) if cleaned_specs else str(d.get("specialization") or d.get("department") or "")
-                hosp_val = d.get("branch_name") or d.get("location") or d.get("hospital_name") or (hosps[0] if hosps else "")
+                hosp_val = d.get("branch") or d.get("branch_name") or d.get("location") or d.get("hospital_name") or (hosps[0] if hosps else "")
                 city_val = d.get("city") or (cities[0] if cities else "")
+                doc_id_str = str(d.get("doctor_id") or d.get("sql_id") or d.get("id") or "")
+                doc_name_str = str(d.get("doctor_name") or d.get("name") or "")
+
+                # Dynamically enrich full branch name from hospitals SQLite table
+                import sqlite3
+                try:
+                    conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT h.name, h.branch, h.city 
+                        FROM doctors doc
+                        JOIN hospitals h ON h.id = doc.tenant_id OR h.tenant_id = doc.tenant_id OR (doc.id LIKE '%chn' AND h.id = 'glh-chn')
+                        WHERE doc.id = ? OR doc.name LIKE ?
+                    """, (doc_id_str, f"%{doc_name_str}%"))
+                    hrow = cursor.fetchone()
+                    if hrow:
+                        h_name, h_branch, h_city = hrow
+                        hosp_val = h_branch if (h_branch and len(h_branch) > len(str(h_name))) else f"{h_name}, {h_city}" if (h_name and h_city) else h_name
+                    conn.close()
+                except Exception:
+                    pass
+
+                if hosp_val and city_val and city_val.lower() not in hosp_val.lower():
+                    hosp_val = f"{hosp_val}, {city_val}"
 
                 doc_record = {
-                    "doctor_id":        str(d.get("doctor_id") or d.get("sql_id") or d.get("id") or ""),
-                    "doctor_name":      str(d.get("doctor_name") or d.get("name") or ""),
+                    "doctor_id":        doc_id_str,
+                    "doctor_name":      doc_name_str,
                     "department":       str(dept_val),
                     "specialization":   str(specs_val),
                     "designation":      str(d.get("designation") or ""),
@@ -97,6 +121,8 @@ class DoctorSearchTool(BaseTool):
                     "experience":       d.get("experience") or d.get("experience_years"),
                     "rating":           d.get("rating") or d.get("rating_score"),
                     "branch_name":      str(hosp_val),
+                    "hospital_name":    str(hosp_val),
+                    "branch":           str(hosp_val),
                     "client_id":        str(d.get("client_id") or d.get("tenant_id") or ""),
                     "city":             str(city_val),
                 }
