@@ -93,7 +93,7 @@ class DoctorSearchTool(BaseTool):
                     conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT h.name, h.branch, h.city, doc.designation, doc.qualifications, doc.consultation_fee, doc.experience_years, doc.languages_spoken
+                        SELECT h.name, h.branch, h.city, doc.designation, doc.qualifications, doc.consultation_fee, doc.experience_years, doc.languages
                         FROM doctors doc
                         JOIN hospitals h ON h.id = doc.tenant_id OR h.tenant_id = doc.tenant_id OR (doc.id LIKE '%chn' AND h.id = 'glh-chn')
                         WHERE doc.id = ? OR doc.name LIKE ?
@@ -108,8 +108,8 @@ class DoctorSearchTool(BaseTool):
                         if exp: d["experience_years"] = exp
                         if langs: d["languages"] = langs
                     conn.close()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.warning(f"SQLite enrichment failed for {doc_name_str}: {_e}")
 
                 if hosp_val and city_val and city_val.lower() not in hosp_val.lower():
                     hosp_val = f"{hosp_val}, {city_val}"

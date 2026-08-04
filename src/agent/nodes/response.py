@@ -55,12 +55,56 @@ def generate_response(state: AgentState) -> dict:
     # Standard LLM response generation for inquiries, general chat, search results, and questions
     recent = "\n".join(f"{m.type}: {m.content}" for m in state["messages"][-4:])
 
+    # GENERAL_QUERY SQLite Fallback: If search_results is empty, look up mentioned doctor directly from SQLite
+    search_results = list(state["runtime"].get("search_results", []))
+    if intent == "GENERAL_QUERY" and not search_results:
+        try:
+            import sqlite3, re as _re
+            # Extract any potential doctor name from recent conversation messages
+            all_msg_text = " ".join(m.content for m in state["messages"][-6:])
+            conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT d.id, d.name, d.designation, d.qualifications, d.consultation_fee, d.experience_years, d.languages,
+                       h.name, h.branch, h.city, d.speciality
+                FROM doctors d
+                LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
+            """)
+            all_doctors = cursor.fetchall()
+            conn.close()
+            # Find any doctor whose name words appear in the conversation
+            for row in all_doctors:
+                doc_name = str(row[1] or "")
+                name_tokens = [t for t in doc_name.replace(".", "").split() if len(t) >= 4]
+                if name_tokens and any(t.lower() in all_msg_text.lower() for t in name_tokens):
+                    h_name, h_branch, h_city = row[7], row[8], row[9]
+                    full_branch = h_branch if (h_branch and len(h_branch) > len(str(h_name))) \
+                        else f"{h_name}, {h_city}" if (h_name and h_city) else (h_name or h_city or "")
+                    fee_val = row[4]
+                    fee_str = f"₹{fee_val}" if (fee_val and not str(fee_val).startswith("₹")) else str(fee_val or "")
+                    search_results.append({
+                        "doctor_id":        row[0],
+                        "doctor_name":      doc_name,
+                        "designation":      row[2] or "",
+                        "qualifications":   row[3] or "",
+                        "consultation_fee": fee_str,
+                        "experience_years": row[5],
+                        "languages":        row[6] or "",
+                        "department":       row[10] or "",
+                        "branch":           full_branch,
+                        "hospital_name":    full_branch,
+                    })
+                    logger.info(f"  [NODE 9: SQLITE FALLBACK] Enriched GENERAL_QUERY with doctor: {doc_name} | fee={fee_str} | exp={row[5]}")
+                    break
+        except Exception as _sql_e:
+            logger.warning(f"  [NODE 9: SQLITE FALLBACK FAILED] {_sql_e}")
+
     prompt = prompts.get(
         "response",
         tenant_id=state["tenant_id"],
         intent=state["conversation"]["intent"],
         workflow_data=state["workflow"]["data"],
-        search_results=state["runtime"].get("search_results", []),
+        search_results=search_results,
         tool_output=state["tool"]["tool_output"],
         memory_summary=state["memory"]["summary"],
         needs_info=state["runtime"].get("needs_info", []),

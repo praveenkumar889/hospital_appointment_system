@@ -304,7 +304,7 @@ class GraphRAGEngine:
                 row = None
                 if did:
                     cursor.execute("""
-                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages_spoken, h.name, h.branch, h.city 
+                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages, h.name, h.branch, h.city 
                         FROM doctors d 
                         LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
                         WHERE d.id = ?
@@ -312,7 +312,7 @@ class GraphRAGEngine:
                     row = cursor.fetchone()
                 if not row and name:
                     cursor.execute("""
-                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages_spoken, h.name, h.branch, h.city 
+                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages, h.name, h.branch, h.city 
                         FROM doctors d 
                         LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
                         WHERE d.name LIKE ?

@@ -188,7 +188,7 @@ def execute_tool(state: AgentState) -> dict:
                     conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT designation, qualifications, experience_years, consultation_fee, languages_spoken, speciality 
+                        SELECT designation, qualifications, experience_years, consultation_fee, languages, speciality 
                         FROM doctors 
                         WHERE id = ? OR name LIKE ?
                     """, (doc_id, f"%{known_doc_name}%"))
