@@ -7,7 +7,7 @@ Intents:
   CANCEL_APPOINTMENT     - explicitly wants to cancel an existing appointment (e.g. "cancel my appointment", "remove booking")
   RESCHEDULE_APPOINTMENT - explicitly wants to reschedule an existing appointment, or selecting/providing a new date or time slot to reschedule an appointment (e.g. "reschedule my appointment", "10:00 AM", "at 10:00 tomorrow")
   VIEW_APPOINTMENT       - asking to view, check, query, or see current active appointment details (e.g. "whats my appointment?", "show my booking", "check my appointment")
-  GENERAL_QUERY          - greeting, thanks, FAQ, or general conversation
+  GENERAL_QUERY          - greeting, thanks, FAQ, general conversation, or informational questions about a doctor's experience, fee, qualifications, or designation (e.g. "whats the experience of Guru Prasad S", "how much is the fee for Dr. Susan", "what are the qualifications of Dr. Gobu")
 
 User message: {message}
 
