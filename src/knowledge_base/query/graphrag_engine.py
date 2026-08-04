@@ -254,10 +254,28 @@ class GraphRAGEngine:
 
         sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
         
-        # Multi-Branch Round-Robin Selection: Ensure doctors from ALL branches in the city are displayed!
-        branch_groups: dict[str, list[dict]] = {}
+        # Boost and prioritize doctors matching requested specialization keywords
+        spec_kw = intent_data.get("specialization_keywords") or []
+        stop_words = {"department", "doctor", "hospital", "medicine", "care", "specialist", "appointment", "clinic", "consultant"}
+        kw_lower = [k.lower() for k in spec_kw if len(k) >= 3 and k.lower() not in stop_words]
+        
+        matched_docs = []
+        other_docs = []
         for did in sorted_ids:
             doc = doc_data[did]
+            specs_raw = doc.get("specializations") or doc.get("speciality") or doc.get("department") or ""
+            specs = (" ".join(specs_raw) if isinstance(specs_raw, (list, tuple, set)) else str(specs_raw)).lower()
+            if kw_lower and any(k in specs for k in kw_lower):
+                matched_docs.append(doc)
+            else:
+                other_docs.append(doc)
+        
+        # If exact department matches exist, use them exclusively for precise targeting
+        fused_candidates = matched_docs if matched_docs else other_docs
+
+        # Multi-Branch Round-Robin Selection: Ensure doctors from ALL branches in the city are displayed!
+        branch_groups: dict[str, list[dict]] = {}
+        for doc in fused_candidates:
             hosps = doc.get("hospitals") or ["Gleneagles Hospital"]
             b_name = hosps[0] if isinstance(hosps, list) and hosps else str(hosps)
             branch_groups.setdefault(b_name, []).append(doc)
