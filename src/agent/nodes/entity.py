@@ -45,14 +45,15 @@ def extract_entities(state: AgentState) -> dict:
     new_dept_norm = normalize_text(new_dept_raw)
     old_dept_norm = normalize_text(old_dept_raw)
 
-    # Clear stale doctor selection if user queries a department without specifying a doctor
+    # Clear stale doctor selection ONLY if user explicitly switches to a DIFFERENT department
     if new_dept_norm:
-        if not extracted.get("doctor_name") and not extracted.get("doctor_id"):
-            for field in CLEAR_ON_DEPARTMENT_CHANGE:
-                merged.pop(field, None)
+        if old_dept_norm and new_dept_norm != old_dept_norm:
+            if not extracted.get("doctor_name") and not extracted.get("doctor_id"):
+                for field in CLEAR_ON_DEPARTMENT_CHANGE:
+                    merged.pop(field, None)
+                logger.info(f"  [NODE 3: DEPARTMENT CHANGED] '{old_dept_raw}' -> '{new_dept_raw}' | Cleared stale doctor state.")
         merged["department"] = new_dept_raw
-        if new_dept_norm != old_dept_norm:
-            logger.info(f"  [NODE 3: DEPARTMENT SET] '{old_dept_raw}' -> '{new_dept_raw}' | Cleared stale doctor state.")
+
 
     # Merge non-null extracted fields
     for k, v in extracted.items():
