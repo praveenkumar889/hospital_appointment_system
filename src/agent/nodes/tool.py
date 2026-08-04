@@ -175,7 +175,7 @@ def execute_tool(state: AgentState) -> dict:
             search_msg = f"Fetched slots for {cached_doc.get('doctor_name')}"
 
         elif known_doc_id or known_doc_name:
-            doc_info = resolve_doctor(data, [], client_id)
+            doc_info = resolve_doctor(data, search_cache, client_id)
             if doc_info.get("multiple_doctors"):
                 doctors = doc_info["multiple_doctors"]
                 search_msg = f"Found {len(doctors)} doctors matching '{known_doc_name}'"

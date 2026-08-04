@@ -55,10 +55,11 @@ class RuntimeState(TypedDict):
     Execution data — what the SYSTEM is doing right now.
     Separate from workflow (business) data for clean debugging.
     """
-    next_action: Optional[str]  # "search" | "book" | "cancel" | "ask_user"
-    needs_info:  list           # fields still required from user
-    retry_count: int
-    errors:      list           # list of error strings from this run
+    next_action:    Optional[str]  # "search" | "book" | "cancel" | "ask_user"
+    needs_info:     list           # fields still required from user
+    retry_count:    int
+    errors:         list           # list of error strings from this run
+    search_results: list           # cached doctor search results — persisted across turns to avoid re-querying GraphRAG
 
 
 class AgentState(TypedDict):

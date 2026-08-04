@@ -52,10 +52,11 @@ def build_initial_state(
             "last_tool": None,
         },
         "runtime": {
-            "next_action": None,
-            "needs_info":  [],
-            "retry_count": 0,
-            "errors":      [],
+            "next_action":    None,
+            "needs_info":     [],
+            "retry_count":    0,
+            "errors":         [],
+            "search_results": [],   # persisted across turns — avoids re-querying GraphRAG
         },
         "session_id": session_id,
         "user_id":    user_id or session_id,  # phone number, WhatsApp ID, or session fallback
