@@ -55,49 +55,76 @@ def generate_response(state: AgentState) -> dict:
     # Standard LLM response generation for inquiries, general chat, search results, and questions
     recent = "\n".join(f"{m.type}: {m.content}" for m in state["messages"][-4:])
 
-    # GENERAL_QUERY SQLite Fallback: If search_results is empty, look up mentioned doctor directly from SQLite
+    # GENERAL_QUERY Doctor Lookup: Find the specific doctor the user is asking about.
+    # Priority order:
+    #   1. Search existing search_results cache using CURRENT user message only
+    #   2. SQLite direct lookup using CURRENT user message only (fallback when cache empty)
+    # We MUST use only the current user message to find the doctor — not all history —
+    # to avoid matching doctors from previous AI responses.
     search_results = list(state["runtime"].get("search_results", []))
-    if intent == "GENERAL_QUERY" and not search_results:
-        try:
-            import sqlite3, re as _re
-            # Extract any potential doctor name from recent conversation messages
-            all_msg_text = " ".join(m.content for m in state["messages"][-6:])
-            conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT d.id, d.name, d.designation, d.qualifications, d.consultation_fee, d.experience_years, d.languages,
-                       h.name, h.branch, h.city, d.speciality
-                FROM doctors d
-                LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
-            """)
-            all_doctors = cursor.fetchall()
-            conn.close()
-            # Find any doctor whose name words appear in the conversation
-            for row in all_doctors:
-                doc_name = str(row[1] or "")
+    if intent == "GENERAL_QUERY":
+        # Extract only the current user's message (last human message)
+        from langchain_core.messages import HumanMessage as _HumanMsg
+        current_user_msg = ""
+        for m in reversed(state["messages"]):
+            if isinstance(m, _HumanMsg):
+                current_user_msg = m.content.lower()
+                break
+
+        # Step 1: Look up the doctor in existing search_results cache
+        matched_from_cache = None
+        if search_results and current_user_msg:
+            for cached_doc in search_results:
+                doc_name = str(cached_doc.get("doctor_name") or "")
                 name_tokens = [t for t in doc_name.replace(".", "").split() if len(t) >= 4]
-                if name_tokens and any(t.lower() in all_msg_text.lower() for t in name_tokens):
-                    h_name, h_branch, h_city = row[7], row[8], row[9]
-                    full_branch = h_branch if (h_branch and len(h_branch) > len(str(h_name))) \
-                        else f"{h_name}, {h_city}" if (h_name and h_city) else (h_name or h_city or "")
-                    fee_val = row[4]
-                    fee_str = f"₹{fee_val}" if (fee_val and not str(fee_val).startswith("₹")) else str(fee_val or "")
-                    search_results.append({
-                        "doctor_id":        row[0],
-                        "doctor_name":      doc_name,
-                        "designation":      row[2] or "",
-                        "qualifications":   row[3] or "",
-                        "consultation_fee": fee_str,
-                        "experience_years": row[5],
-                        "languages":        row[6] or "",
-                        "department":       row[10] or "",
-                        "branch":           full_branch,
-                        "hospital_name":    full_branch,
-                    })
-                    logger.info(f"  [NODE 9: SQLITE FALLBACK] Enriched GENERAL_QUERY with doctor: {doc_name} | fee={fee_str} | exp={row[5]}")
+                if name_tokens and any(t.lower() in current_user_msg for t in name_tokens):
+                    matched_from_cache = cached_doc
                     break
-        except Exception as _sql_e:
-            logger.warning(f"  [NODE 9: SQLITE FALLBACK FAILED] {_sql_e}")
+
+        if matched_from_cache:
+            # Doctor found in cache — use it directly, keep only the matched doctor in search_results
+            search_results = [matched_from_cache]
+            logger.info(f"  [NODE 9: CACHE HIT] GENERAL_QUERY matched doctor from cache: {matched_from_cache.get('doctor_name')}")
+
+        elif not search_results and current_user_msg:
+            # Step 2: SQLite fallback — only when cache is empty, search current message only
+            try:
+                import sqlite3
+                conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT d.id, d.name, d.designation, d.qualifications, d.consultation_fee, d.experience_years, d.languages,
+                           h.name, h.branch, h.city, d.speciality
+                    FROM doctors d
+                    LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
+                """)
+                all_doctors = cursor.fetchall()
+                conn.close()
+                for row in all_doctors:
+                    doc_name = str(row[1] or "")
+                    name_tokens = [t for t in doc_name.replace(".", "").split() if len(t) >= 4]
+                    if name_tokens and any(t.lower() in current_user_msg for t in name_tokens):
+                        h_name, h_branch, h_city = row[7], row[8], row[9]
+                        full_branch = h_branch if (h_branch and len(h_branch) > len(str(h_name))) \
+                            else f"{h_name}, {h_city}" if (h_name and h_city) else (h_name or h_city or "")
+                        fee_val = row[4]
+                        fee_str = f"₹{fee_val}" if (fee_val and not str(fee_val).startswith("₹")) else str(fee_val or "")
+                        search_results = [{
+                            "doctor_id":        row[0],
+                            "doctor_name":      doc_name,
+                            "designation":      row[2] or "",
+                            "qualifications":   row[3] or "",
+                            "consultation_fee": fee_str,
+                            "experience_years": row[5],
+                            "languages":        row[6] or "",
+                            "department":       row[10] or "",
+                            "branch":           full_branch,
+                            "hospital_name":    full_branch,
+                        }]
+                        logger.info(f"  [NODE 9: SQLITE FALLBACK] Matched doctor: {doc_name} | fee={fee_str} | exp={row[5]}")
+                        break
+            except Exception as _sql_e:
+                logger.warning(f"  [NODE 9: SQLITE FALLBACK FAILED] {_sql_e}")
 
     prompt = prompts.get(
         "response",
