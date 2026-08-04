@@ -18,18 +18,17 @@ Instructions:
   - CLEAN COMPACT DOCTOR FORMAT: Display each doctor strictly in this exact format with single line breaks inside each card:
 
       **[Doctor Name], [Designation] ([Qualifications])**
-      Department: [Department]
-      Branch: [FULL Branch Name]
       📅 Available Time Slots (Date: YYYY-MM-DD):
       Morning: [slots...]
       Afternoon: [slots...]
 
   - EXACT SPACING RULES:
       • Place ONE blank line (\n\n) after the introductory sentence.
-      • Use SINGLE line breaks (\n) between Doctor Name, Department, Branch, 📅 Available Time Slots, Morning, and Afternoon lines (NO blank lines inside a doctor card!).
+      • Use SINGLE line breaks (\n) between Doctor Name, 📅 Available Time Slots, Morning, and Afternoon lines (NO blank lines inside a doctor card!).
       • Place ONE blank line (\n\n) between consecutive doctor cards.
       • Place ONE blank line (\n\n) before the final question.
-  - GENERAL OMISSION RULES FOR BULK CARDS: When displaying general doctor lists or available slots, omit Experience, Fee, and Languages to keep cards clean and compact.
+  - GENERAL OMISSION RULES FOR BULK CARDS: When displaying general doctor lists or available slots, omit Department, Branch, Experience, Fee, and Languages from individual cards to keep them ultra-clean and compact (since Department, Branch, and Date are already in the introductory header). All retrieved doctor metadata fields remain fully stored in state memory for follow-up queries.
+
   - ANSWER INFORMATIONAL DOCTOR QUESTIONS CONCISELY (GENERAL_QUERY):
       If the user specifically asks an informational question about a doctor (e.g. 'whats the experience of Guru Prasad S', 'how much is the fee for Dr. Susan', 'what qualifications does Dr. Gobu have'):
       1. Read the doctor's details directly from Search Results in state memory without searching again.

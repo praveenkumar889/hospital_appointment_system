@@ -175,13 +175,14 @@ def generate_response(state: AgentState) -> dict:
     import re
     cleaned_reply = reply_text.replace("\r\n", "\n")
     
-    # 1. Ensure SINGLE line break (\n) inside entire doctor block (Name -> Department -> Branch -> Slots -> Morning -> Afternoon)
-    cleaned_reply = re.sub(r'(\*\*[^\n]+\*\*)\n\s*\n+(Department:)', r'\1\n\2', cleaned_reply)
-    cleaned_reply = re.sub(r'(Department:[^\n]*)\n\s*\n+(Branch:)', r'\1\n\2', cleaned_reply)
+    # 1. Ensure SINGLE line break (\n) inside entire doctor block (Name -> Slots -> Morning -> Afternoon)
+    cleaned_reply = re.sub(r'(\*\*[^\n]+\*\*)\n\s*\n+(Department:|Branch:|📅 Available Time Slots)', r'\1\n\2', cleaned_reply)
+    cleaned_reply = re.sub(r'(Department:[^\n]*)\n\s*\n+(Branch:|📅 Available Time Slots)', r'\1\n\2', cleaned_reply)
     cleaned_reply = re.sub(r'(Branch:[^\n]*)\n\s*\n+(📅 Available Time Slots)', r'\1\n\2', cleaned_reply)
     cleaned_reply = re.sub(r'(📅 Available Time Slots[^\n]*)\n\s*\n+(Morning:|Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
     cleaned_reply = re.sub(r'(Morning:[^\n]*)\n\s*\n+(Afternoon:|Evening:)', r'\1\n\2', cleaned_reply)
     cleaned_reply = re.sub(r'(Afternoon:[^\n]*)\n\s*\n+(Evening:)', r'\1\n\2', cleaned_reply)
+
 
     # 2. Collapse any 3+ newlines to max 2 newlines (\n\n) for card separation
     cleaned_reply = re.sub(r'\n{3,}', '\n\n', cleaned_reply).strip()
