@@ -25,9 +25,11 @@ def filter_doctors_by_department(doctors: list, target_dept: str) -> list:
 
     filtered = []
     for d in doctors:
-        doc_dept = normalize_text(d.get("department") or d.get("specialization") or "")
-        doc_spec = normalize_text(d.get("specialization") or "")
-        combined = f"{doc_dept} {doc_spec}"
+        doc_dept = normalize_text(d.get("department") or "")
+        doc_spec = normalize_text(d.get("specialization") or d.get("speciality") or "")
+        doc_desig= normalize_text(d.get("designation") or "")
+        doc_qual = normalize_text(d.get("qualifications") or "")
+        combined = f"{doc_dept} {doc_spec} {doc_desig} {doc_qual}"
 
         if any(term in combined for term in search_terms):
             filtered.append(d)
@@ -180,7 +182,6 @@ def execute_tool(state: AgentState) -> dict:
         # for that one doctor.
         cached_doc = None
         if (known_doc_name or known_doc_id) and search_cache:
-            from src.agent.constants import normalize_text
             target_norm = normalize_text(known_doc_name or known_doc_id)
             for cached in search_cache:
                 cand_norm = normalize_text(cached.get("doctor_name", ""))
@@ -263,13 +264,17 @@ def execute_tool(state: AgentState) -> dict:
             # Broad GraphRAG Doctor Search via Knowledge Base API
             dept = data.get("department")
             city = data.get("city") or data.get("location")
+            last_msg = state["conversation"]["last_user_message"] or ""
 
-            if dept and city:
-                search_query = f"{dept} doctor in {city}"
-            elif dept:
-                search_query = f"{dept} doctor"
-            else:
-                search_query = state["conversation"]["last_user_message"]
+            query_parts = []
+            if last_msg:
+                query_parts.append(last_msg)
+            if dept and normalize_text(dept) not in normalize_text(last_msg):
+                query_parts.append(dept)
+            if city and normalize_text(city) not in normalize_text(last_msg):
+                query_parts.append(f"in {city}")
+
+            search_query = " ".join(query_parts).strip() if query_parts else (last_msg or f"{dept or ''} doctor in {city or ''}".strip())
 
             logger.info(f"  [NODE 6: EXECUTE_TOOL] Search Query: '{search_query}'")
 

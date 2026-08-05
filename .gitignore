@@ -51,3 +51,6 @@ build/
 dist/
 *.egg-info/
 .eggs/
+
+# Local ChromaDB Vector Store Cache
+data/chroma/

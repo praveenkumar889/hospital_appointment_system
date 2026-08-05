@@ -273,6 +273,19 @@ class GraphRAGEngine:
         # If exact department matches exist, use them exclusively for precise targeting
         fused_candidates = matched_docs if matched_docs else other_docs
 
+        # Dynamic Language Filter: If user specified a preferred language (e.g. "Telugu", "Tamil", "Hindi"), prioritize doctors speaking that language!
+        prefs = (intent_data.get("preferences") or {}) if intent_data else {}
+        pref_lang = prefs.get("language")
+        if pref_lang and isinstance(pref_lang, str) and pref_lang.strip():
+            lang_target = pref_lang.strip().lower()
+            lang_matched = [
+                doc for doc in fused_candidates 
+                if lang_target in str(doc.get("languages") or "").lower()
+            ]
+            if lang_matched:
+                fused_candidates = lang_matched
+                logger.info(f"  [GRAPHRAG FUSION] Dynamic language filter '{pref_lang}' -> Kept {len(lang_matched)} matching doctor(s).")
+
         # Multi-Branch Round-Robin Selection: Ensure doctors from ALL branches in the city are displayed!
         branch_groups: dict[str, list[dict]] = {}
         for doc in fused_candidates:
@@ -304,7 +317,7 @@ class GraphRAGEngine:
                 row = None
                 if did:
                     cursor.execute("""
-                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages, h.name, h.branch, h.city 
+                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages, h.name, h.branch, h.city, d.speciality, d.specializations 
                         FROM doctors d 
                         LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
                         WHERE d.id = ?
@@ -312,7 +325,7 @@ class GraphRAGEngine:
                     row = cursor.fetchone()
                 if not row and name:
                     cursor.execute("""
-                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages, h.name, h.branch, h.city 
+                        SELECT d.qualifications, d.consultation_fee, d.designation, d.experience_years, d.languages, h.name, h.branch, h.city, d.speciality, d.specializations 
                         FROM doctors d 
                         LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id
                         WHERE d.name LIKE ?
@@ -324,6 +337,9 @@ class GraphRAGEngine:
                     if row[2]: doc["designation"] = row[2]
                     if row[3]: doc["experience_years"] = row[3]
                     if row[4]: doc["languages"] = row[4]
+                    if len(row) > 8 and row[8]: doc["speciality"] = row[8]
+                    if len(row) > 9 and row[9]: doc["specializations"] = row[9]
+                    if len(row) > 8 and (row[8] or row[9]): doc["department"] = row[8] or row[9]
                     h_name, h_branch, h_city = row[5], row[6], row[7]
                     if h_name or h_branch:
                         full_branch = h_branch if (h_branch and len(h_branch) > len(str(h_name))) else f"{h_name}, {h_city}" if (h_name and h_city) else (h_name or h_branch)

@@ -93,20 +93,23 @@ class DoctorSearchTool(BaseTool):
                     conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT h.name, h.branch, h.city, doc.designation, doc.qualifications, doc.consultation_fee, doc.experience_years, doc.languages
+                        SELECT h.name, h.branch, h.city, doc.designation, doc.qualifications, doc.consultation_fee, doc.experience_years, doc.languages, doc.speciality, doc.specializations
                         FROM doctors doc
                         JOIN hospitals h ON h.id = doc.tenant_id OR h.tenant_id = doc.tenant_id OR (doc.id LIKE '%chn' AND h.id = 'glh-chn')
                         WHERE doc.id = ? OR doc.name LIKE ?
                     """, (doc_id_str, f"%{doc_name_str}%"))
                     hrow = cursor.fetchone()
                     if hrow:
-                        h_name, h_branch, h_city, desig, qual, fee, exp, langs = hrow
+                        h_name, h_branch, h_city, desig, qual, fee, exp, langs, spec, specs = hrow
                         hosp_val = h_branch if (h_branch and len(h_branch) > len(str(h_name))) else f"{h_name}, {h_city}" if (h_name and h_city) else h_name
                         if desig: d["designation"] = desig
                         if qual: d["qualifications"] = qual
                         if fee: d["consultation_fee"] = f"₹{fee}" if not str(fee).startswith("₹") else str(fee)
                         if exp: d["experience_years"] = exp
                         if langs: d["languages"] = langs
+                        if spec: d["speciality"] = spec
+                        if specs: d["specialization"] = specs
+                        if spec or specs: d["department"] = spec or specs
                     conn.close()
                 except Exception as _e:
                     logger.warning(f"SQLite enrichment failed for {doc_name_str}: {_e}")
