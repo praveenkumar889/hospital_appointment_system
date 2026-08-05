@@ -122,14 +122,24 @@ def _build_book_payload(state: AgentState, date_val: str, client_id: str) -> dic
     search_cache = state["runtime"].get("search_results", [])
     doc_info = resolve_doctor(data, search_cache, client_id)
 
-    # Auto-resolve time_val if missing from search cache open slots
     time_val = data.get("time")
+    if time_val and ("AM" in str(time_val).upper() or "PM" in str(time_val).upper()):
+        from datetime import datetime
+        time_upper = str(time_val).upper().strip()
+        for fmt in ("%I:%M %p", "%I:%M%p", "%I %p", "%I%p"):
+            try:
+                time_val = datetime.strptime(time_upper, fmt).strftime("%H:%M")
+                break
+            except ValueError:
+                continue
+
     if not time_val and search_cache:
         for search_doc in search_cache:
             if doc_info["doctor_id"] == search_doc.get("doctor_id") and search_doc.get("available_times"):
                 time_val = search_doc["available_times"][0]
                 logger.info(f"  [NODE 6: AUTO-RESOLVED TIME] Assigned open slot '{time_val}' for doctor {doc_info['doctor_id']}")
                 break
+
 
     notes = ", ".join(data["symptoms"]) if isinstance(data.get("symptoms"), list) else (data.get("symptoms") or "Appointment Booking")
     payload = {

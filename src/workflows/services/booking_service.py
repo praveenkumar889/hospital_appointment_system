@@ -57,12 +57,24 @@ class AppointmentBookingService:
             actual_doctor_id, doctor_name, speciality, experience_years = doctor[0], doctor[1], doctor[2] or "General", doctor[3]
 
             import re
-            clean_time = re.sub(r'[^\d:]', '', time).strip() if time else ""
+            from datetime import datetime
+
+            clean_time = re.sub(r'[^\d:]', '', str(time)).strip() if time else ""
+            t24_time = clean_time
+            time_upper = str(time).upper().strip()
+            if "AM" in time_upper or "PM" in time_upper:
+                for fmt in ("%I:%M %p", "%I:%M%p", "%I %p", "%I%p"):
+                    try:
+                        dt_obj = datetime.strptime(time_upper, fmt)
+                        t24_time = dt_obj.strftime("%H:%M")
+                        break
+                    except ValueError:
+                        continue
 
             # 1. Double Booking Prevention: Check if active appointment already exists for same doctor, date, time
             existing_appt = self.db.execute(
-                text("SELECT id FROM appointments WHERE doctor_id = :did AND date = :date AND (time = :time OR time LIKE :tpat) AND status IN ('booked', 'confirmed')"),
-                {"did": actual_doctor_id, "date": date, "time": time, "tpat": f"%{clean_time}%"}
+                text("SELECT id FROM appointments WHERE doctor_id = :did AND date = :date AND (time = :time OR time = :t24 OR time LIKE :tpat) AND status IN ('booked', 'confirmed')"),
+                {"did": actual_doctor_id, "date": date, "time": time, "t24": t24_time, "tpat": f"%{clean_time}%"}
             ).fetchone()
             if existing_appt:
                 raise ValueError(f"The slot at {time} on {date} for Dr. {doctor_name} is already booked. Please select another time slot.")
@@ -71,6 +83,7 @@ class AppointmentBookingService:
             slot = self._find_slot(actual_doctor_id, date, time)
             slot_id = slot[0] if slot else None
             is_available = slot[1] if (slot and len(slot) > 1) else 1
+
 
             if is_available == 0:
                 raise ValueError(f"The slot at {time} on {date} for Dr. {doctor_name} is no longer available. Please select another time slot.")

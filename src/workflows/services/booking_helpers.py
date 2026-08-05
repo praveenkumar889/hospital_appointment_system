@@ -64,19 +64,42 @@ import re
 
 def find_slot(db: Session, doc_id: str, date: str, time: str, available_only: bool = True):
     """Find slot ID matching doctor, date, and time criteria."""
-    clean_time = re.sub(r'[^\d:]', '', time).strip() if time else ""
+    if not time:
+        return None
+
+    import re
+    from datetime import datetime
+
+    time_candidates = [str(time).strip()]
+    clean_time = re.sub(r'[^\d:]', '', str(time)).strip()
+    if clean_time:
+        time_candidates.append(clean_time)
+
+    # Convert 12-hour AM/PM format (e.g. "02:30 PM", "2:30 PM") to 24-hour format ("14:30")
+    time_upper = str(time).upper().strip()
+    if "AM" in time_upper or "PM" in time_upper:
+        for fmt in ("%I:%M %p", "%I:%M%p", "%I %p", "%I%p"):
+            try:
+                dt_obj = datetime.strptime(time_upper, fmt)
+                t24 = dt_obj.strftime("%H:%M")
+                time_candidates.append(t24)
+                break
+            except ValueError:
+                continue
+
     avail_clause = "AND available = 1" if available_only else ""
 
-    # 1. Exact doctor + date + time
-    slot = db.execute(
-        text(f"SELECT id, available FROM time_slots WHERE doctor_id = :did AND date = :date AND (time = :time OR time = :ctime OR time LIKE :tpat) {avail_clause} ORDER BY available DESC"),
-        {"did": doc_id, "date": date, "time": time, "ctime": clean_time, "tpat": f"%{clean_time}%"}
-    ).fetchone()
-    if slot:
-        return slot
+    for tc in time_candidates:
+        slot = db.execute(
+            text(f"SELECT id, available FROM time_slots WHERE doctor_id = :did AND date = :date AND (time = :tc OR time LIKE :tpat) {avail_clause} ORDER BY available DESC"),
+            {"did": doc_id, "date": date, "tc": tc, "tpat": f"%{tc}%"}
+        ).fetchone()
+        if slot:
+            return slot
 
     # 2. Check if slot exists regardless of availability (to report booked state)
     if available_only:
         return find_slot(db, doc_id, date, time, available_only=False)
 
     return None
+
