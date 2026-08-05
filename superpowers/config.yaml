@@ -1,0 +1,63 @@
+# Superpowers Configuration for Hospital AI Assistant
+
+project:
+  name: "Hospital AI Assistant - WhatsApp Appointment Booking"
+  type: "healthcare"
+  version: "1.0.0"
+  created: "2026-08-05"
+
+services:
+  - name: "langgraph-agent"
+    path: "src/agent"
+    port: 8005
+    technology: "Python/LangGraph"
+    
+  - name: "knowledge-base-api"
+    path: "src/knowledge_base"
+    port: 8000
+    technology: "Python/FastAPI"
+    
+  - name: "workflows-api"
+    path: "src/workflows"
+    port: 8001
+    technology: "Python/FastAPI"
+    
+  - name: "whatsapp-ui"
+    path: "src/interface"
+    port: 8505
+    technology: "Python/Streamlit"
+
+databases:
+  - name: "sqlite"
+    purpose: "Transactional - appointments, slots, doctors"
+    file: "src/workflows/data/db/knowledge_base.db"
+  - name: "neo4j"
+    purpose: "Relationships - doctor specialties, languages, hospitals"
+    port: 7687
+  - name: "chromadb"
+    purpose: "Semantic search - doctor profiles"
+
+development:
+  testing_framework: "pytest"
+  coverage_minimum: 90
+  linting_tools:
+    - black
+    - mypy
+    - flake8
+
+superpowers_skills:
+  - brainstorming
+  - writing-plans
+  - test-driven-development
+  - subagent-driven-development
+  - systematic-debugging
+  - requesting-code-review
+  - healthcare-testing
+
+healthcare_requirements:
+  critical_safety_features:
+    - "No patient PII in logs"
+    - "Double-booking prevention"
+    - "Doctor availability enforcement"
+    - "Atomic appointment transactions"
+    - "Appointment status validation"
