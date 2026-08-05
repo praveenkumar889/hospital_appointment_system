@@ -17,6 +17,11 @@ from src.tools.models import ToolRequest, ToolResponse
 logger = logging.getLogger("agent_tools")
 
 
+
+
+
+
+
 class DoctorSearchTool(BaseTool):
     """Searches doctors via GraphRAG (semantic + graph). One capability: search."""
 
@@ -120,8 +125,9 @@ class DoctorSearchTool(BaseTool):
                 doc_record = {
                     "doctor_id":        doc_id_str,
                     "doctor_name":      doc_name_str,
-                    "department":       str(dept_val),
-                    "specialization":   str(specs_val),
+                    "department":       str(d.get("department") or d.get("speciality") or dept_val),
+                    "specialization":   str(d.get("specialization") or specs_val),
+
                     "designation":      str(d.get("designation") or ""),
                     "qualifications":   str(d.get("qualifications") or ""),
                     "consultation_fee": str(d.get("consultation_fee") or ""),

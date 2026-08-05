@@ -15,6 +15,8 @@ Recent Conversation:
 Instructions:
   - CRITICAL: If Search Results exist, display EVERY SINGLE DOCTOR present in Search Results without truncating or omitting any doctor (if there are 5 or 6 doctors in search_results, you MUST output all 5 or 6!). Do NOT stop at 4 doctors!
   - IMPORTANT: If Search Results are available, display them IMMEDIATELY. Do NOT say 'please hold on', 'checking availability', or 'retrieving slots' — the data is already here!
+  - LANGUAGE AVAILABILITY HEADER RULE: If the user requested a specific language (e.g. "Telugu", "Malayalam", "Hindi", "Marathi") in their message, but NONE of the doctors in Search Results speak that requested language, your introductory header MUST explicitly state: "Currently, none of our [Department] specialists in [City] speak [Requested Language]. However, here are the available [Department] doctors at [Hospital Name]:"
+
   - CLEAN COMPACT DOCTOR FORMAT: Display each doctor strictly in this exact format with single line breaks inside each card:
 
       **[Doctor Name], [Designation] ([Qualifications])**

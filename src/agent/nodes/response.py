@@ -4,10 +4,12 @@ Passes full state (workflow_data, search_results, memory, needs_info) to respons
 Includes clean deterministic formatting for successful reschedule and cancel transactions on the current turn.
 """
 
+import re
 import logging
 from langchain_core.messages import HumanMessage, AIMessage
 from src.agent.state import AgentState
 from src.agent.nodes._shared import llm, prompts
+
 
 logger = logging.getLogger("agent_nodes")
 
@@ -131,6 +133,29 @@ def generate_response(state: AgentState) -> dict:
                     if matched_row:
                         break
 
+                # If no explicit doctor name found, dynamically match by token set intersection with designation & specialty
+                if not matched_row:
+                    best_score = 0
+                    for text_to_check in human_texts:
+                        text_tokens = set(t.lower() for t in re.findall(r'\b\w+\b', text_to_check) if len(t) >= 3)
+                        for row in all_doctors:
+                            desig_tokens = set(t.lower() for t in re.findall(r'\b\w+\b', str(row[2] or "")) if len(t) >= 3)
+                            spec_tokens  = set(t.lower() for t in re.findall(r'\b\w+\b', str(row[10] or "")) if len(t) >= 3)
+                            
+                            desig_match = len(desig_tokens & text_tokens)
+                            spec_match  = len(spec_tokens & text_tokens)
+                            
+                            if desig_match > 0:
+                                score = desig_match * 2 + spec_match
+                                if score > best_score:
+                                    best_score = score
+                                    matched_row = row
+                        if matched_row and best_score >= 2:
+                            break
+
+
+
+
                 if matched_row:
                     row = matched_row
                     doc_name = str(row[1] or "")
@@ -172,8 +197,8 @@ def generate_response(state: AgentState) -> dict:
     reply_text = reply_raw.content if hasattr(reply_raw, "content") else str(reply_raw)
     
     # Deterministic Spacing Normalizer: Enforce exact single-line breaks inside cards & 1 blank line between cards
-    import re
     cleaned_reply = reply_text.replace("\r\n", "\n")
+
     
     # 1. Ensure SINGLE line break (\n) inside entire doctor block (Name -> Slots -> Morning -> Afternoon)
     cleaned_reply = re.sub(r'(\*\*[^\n]+\*\*)\n\s*\n+(Department:|Branch:|📅 Available Time Slots)', r'\1\n\2', cleaned_reply)

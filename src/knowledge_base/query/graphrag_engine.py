@@ -256,35 +256,44 @@ class GraphRAGEngine:
         
         # Boost and prioritize doctors matching requested specialization keywords
         spec_kw = intent_data.get("specialization_keywords") or []
-        stop_words = {"department", "doctor", "hospital", "medicine", "care", "specialist", "appointment", "clinic", "consultant"}
-        kw_lower = [k.lower() for k in spec_kw if len(k) >= 3 and k.lower() not in stop_words]
+        kw_lower = [k.lower() for k in spec_kw if len(k) >= 3]
+
         
         matched_docs = []
         other_docs = []
         for did in sorted_ids:
             doc = doc_data[did]
-            specs_raw = doc.get("specializations") or doc.get("speciality") or doc.get("department") or ""
-            specs = (" ".join(specs_raw) if isinstance(specs_raw, (list, tuple, set)) else str(specs_raw)).lower()
-            if kw_lower and any(k in specs for k in kw_lower):
+            meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else doc
+            primary_dept = (doc.get("speciality") or meta.get("speciality") or doc.get("department") or meta.get("department") or "").lower()
+            specs = str(doc.get("specialization") or meta.get("specialization") or meta.get("specializations") or "").lower()
+            combined_dept = f"{primary_dept} {specs}"
+            
+            if kw_lower and any(k in combined_dept or (len(k) >= 4 and k[:4] in combined_dept) for k in kw_lower):
                 matched_docs.append(doc)
             else:
                 other_docs.append(doc)
-        
-        # If exact department matches exist, use them exclusively for precise targeting
-        fused_candidates = matched_docs if matched_docs else other_docs
 
-        # Dynamic Language Filter: If user specified a preferred language (e.g. "Telugu", "Tamil", "Hindi"), prioritize doctors speaking that language!
+        
+        # If exact primary department matches exist, prioritize department candidates exclusively
+        base_candidates = matched_docs if matched_docs else other_docs
+
+        # Dynamic Language Filter: Filter within department candidates if user requested a specific language
         prefs = (intent_data.get("preferences") or {}) if intent_data else {}
         pref_lang = prefs.get("language")
+        fused_candidates = base_candidates
         if pref_lang and isinstance(pref_lang, str) and pref_lang.strip():
             lang_target = pref_lang.strip().lower()
             lang_matched = [
-                doc for doc in fused_candidates 
-                if lang_target in str(doc.get("languages") or "").lower()
+                doc for doc in base_candidates 
+                if lang_target in str(doc.get("languages") or (doc.get("metadata", {}).get("languages") if isinstance(doc.get("metadata"), dict) else "") or "").lower()
+
             ]
             if lang_matched:
                 fused_candidates = lang_matched
                 logger.info(f"  [GRAPHRAG FUSION] Dynamic language filter '{pref_lang}' -> Kept {len(lang_matched)} matching doctor(s).")
+            else:
+                logger.info(f"  [GRAPHRAG FUSION] Dynamic language filter '{pref_lang}' -> 0 doctor(s) in primary department speak '{pref_lang}'. Preserving department candidate(s).")
+
 
         # Multi-Branch Round-Robin Selection: Ensure doctors from ALL branches in the city are displayed!
         branch_groups: dict[str, list[dict]] = {}

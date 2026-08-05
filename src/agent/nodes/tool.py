@@ -3,8 +3,10 @@ tool node — Execute tool via registry with single-node bulk search & state cac
 Reads runtime.next_action to route doctor search, bulk availability, or booking/reschedule/cancel calls.
 """
 
+import re
 import logging
 from datetime import datetime, timedelta
+
 from src.agent.state import AgentState
 from src.agent.constants import normalize_text
 from src.agent.nodes._shared import registry
@@ -14,14 +16,14 @@ logger = logging.getLogger("agent_nodes")
 
 
 def filter_doctors_by_department(doctors: list, target_dept: str) -> list:
-    """Dynamically filter candidate doctors by department using dynamic prefix/token matching. Zero hardcoded dictionaries."""
+    """Dynamically filter candidate doctors by department using dynamic word-token and prefix matching."""
     if not target_dept or not doctors:
         return doctors
 
+    import re
     dept_norm = normalize_text(target_dept)
     tokens = [t for t in dept_norm.replace("&", " ").replace("-", " ").split() if len(t) >= 3]
     prefixes = [t[:5] for t in tokens if len(t) >= 5]
-    search_terms = set(tokens + prefixes)
 
     filtered = []
     for d in doctors:
@@ -30,11 +32,30 @@ def filter_doctors_by_department(doctors: list, target_dept: str) -> list:
         doc_desig= normalize_text(d.get("designation") or "")
         doc_qual = normalize_text(d.get("qualifications") or "")
         combined = f"{doc_dept} {doc_spec} {doc_desig} {doc_qual}"
+        combined_words = set(re.findall(r'\b\w+\b', combined.lower()))
 
-        if any(term in combined for term in search_terms):
+        matched = False
+        for token in tokens:
+            if len(token) <= 4 and token in combined_words:
+                matched = True
+                break
+            elif len(token) >= 5 and any(p in combined for p in [token, token[:5]]):
+                matched = True
+                break
+
+        if matched:
             filtered.append(d)
 
     return filtered if filtered else doctors
+
+
+
+
+
+
+
+
+
 
 
 
@@ -274,6 +295,7 @@ def execute_tool(state: AgentState) -> dict:
             if city and normalize_text(city) not in normalize_text(last_msg):
                 query_parts.append(f"in {city}")
 
+
             search_query = " ".join(query_parts).strip() if query_parts else (last_msg or f"{dept or ''} doctor in {city or ''}".strip())
 
             logger.info(f"  [NODE 6: EXECUTE_TOOL] Search Query: '{search_query}'")
@@ -283,10 +305,27 @@ def execute_tool(state: AgentState) -> dict:
             doctors = search_resp.data if (search_resp and search_resp.success and isinstance(search_resp.data, list)) else []
             search_msg = search_resp.message if search_resp else "Search completed"
 
-            # Filter doctors by department if department was specified in workflow data
+            # Filter doctors by department if specified or inferred
             if dept and doctors:
                 doctors = filter_doctors_by_department(doctors, dept)
                 logger.info(f"  [NODE 6: EXECUTE_TOOL] Department filter '{dept}' -> Kept {len(doctors)} matching doctor(s).")
+
+            # Filter doctors by requested language using dynamic candidate languages set intersection
+            if doctors and last_msg:
+                user_tokens = set(t.lower() for t in re.findall(r'\b[A-Za-z]{4,}\b', last_msg))
+                for doc in doctors:
+                    doc_langs = set(l.strip().lower() for l in str(doc.get("languages") or "").replace(",", " ").split() if len(l.strip()) >= 4)
+                    matched = doc_langs & user_tokens
+                    if matched:
+                        req_lang = next(iter(matched))
+                        lang_docs = [d for d in doctors if req_lang in str(d.get("languages") or "").lower()]
+                        if lang_docs:
+                            doctors = lang_docs
+                            logger.info(f"  [NODE 6: EXECUTE_TOOL] Dynamic language filter '{req_lang}' -> Kept {len(doctors)} doctor(s).")
+                        break
+
+
+
 
 
         # Step B: Batch availability — tool handles parallelism, retry, and fault isolation internally

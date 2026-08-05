@@ -41,23 +41,46 @@ async def search_doctors(
         ai_resp      = result.response
     except Exception as e:
         logger.warning(f"[TERMINAL 1 WARN] GraphRAG query exception handled gracefully: {e}")
-        import sqlite3
+        import sqlite3, re
         conn = sqlite3.connect("src/workflows/data/db/knowledge_base.db")
         cursor = conn.cursor()
-        query_term = f"%{q.split()[0]}%" if q else "%"
+        
+        tokens = [t.lower() for t in re.findall(r'\b[A-Za-z]{4,}\b', q)]
+        stop_words = {"find", "show", "need", "want", "doctor", "specialist", "speaks", "chennai", "perumbakkam"}
+        spec_tokens = [t for t in tokens if t not in stop_words]
+        search_stem = spec_tokens[0][:4] if spec_tokens else (tokens[0][:4] if tokens else "%")
+        
         cursor.execute("""
-            SELECT d.id, d.name, d.speciality, h.name, h.city
+            SELECT d.id, d.name, d.speciality, d.specializations, d.designation, d.qualifications, d.consultation_fee, d.experience_years, d.languages, h.name, h.branch, h.city
             FROM doctors d
-            LEFT JOIN hospitals h ON d.location_id = h.location_id
-            WHERE (d.name LIKE ? OR d.speciality LIKE ?)
+            LEFT JOIN hospitals h ON h.id = d.tenant_id OR h.tenant_id = d.tenant_id OR (d.id LIKE '%chn' AND h.id = 'glh-chn')
+            WHERE (d.name LIKE ? OR d.speciality LIKE ? OR d.specializations LIKE ?)
             LIMIT ?
-        """, (query_term, query_term, n))
+        """, (f"%{search_stem}%", f"%{search_stem}%", f"%{search_stem}%", n))
         rows = cursor.fetchall()
         conn.close()
-        doctors_data = [{
-            "doctor_id": r[0], "name": r[1], "specialization": r[2] or "General",
-            "hospital_name": r[3] or "Gleneagles Hospitals", "city": r[4] or "Hyderabad"
-        } for r in rows]
+        
+        doctors_data = []
+        for r in rows:
+            hosp_val = r[10] if (r[10] and len(r[10]) > len(str(r[9]))) else f"{r[9]}, {r[11]}" if (r[9] and r[11]) else r[9]
+            doctors_data.append({
+                "doctor_id":        r[0],
+                "doctor_name":      r[1],
+                "department":       r[2] or r[3],
+                "specialization":   r[3] or r[2],
+                "designation":      r[4] or "",
+                "qualifications":   r[5] or "",
+                "consultation_fee": f"₹{r[6]}" if r[6] and not str(r[6]).startswith("₹") else str(r[6] or ""),
+
+                "experience_years": r[7],
+                "languages":        r[8] or "",
+                "branch_name":      hosp_val,
+                "hospital_name":    hosp_val,
+                "branch":           hosp_val,
+            })
+        links_data = []
+        ai_resp = f"Here are the available doctors for your query: {q}"
+
         intent_val = "DOCTOR_SEARCH"
         links_data = []
         ai_resp = f"Retrieved {len(doctors_data)} doctor(s)."
